@@ -1,0 +1,44 @@
+service: twitch-ai-chatbot-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${env:AWS_REGION, 'us-east-1'}
+  environment:
+    # Sensitive keys are loaded at runtime from AWS Secrets Manager using boto3 in the Lambda handler
+    CHAT_TABLE: ${env:CHAT_TABLE, 'twitch_chat_logs'}
+    OPENAI_MODEL: ${env:OPENAI_MODEL, 'gpt-4o-mini'}
+    CORS_ALLOW_ORIGIN: ${env:CORS_ALLOW_ORIGIN, '*'}
+    USE_GEMINI: ${env:USE_GEMINI, 'true'}
+    GEMINI_MODEL: ${env:GEMINI_MODEL, 'gemini-2.5-flash'}
+    # GEMINI_API_KEY: 'YOUR_API_KEY' # Set via Secrets Manager; do not expose here
+  httpApi:
+    cors:
+      allowedOrigins:
+        - ${env:CORS_ALLOW_ORIGIN, '*'}
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - POST
+        - OPTIONS
+
+functions:
+  chatAsk:
+    handler: lambda/chat_ask.lambda_handler
+    events:
+      - httpApi:
+          path: /chat/ask
+          method: POST
+
+plugins:
+  - serverless-python-requirements
+
+package:
+  patterns:
+    - lambda/**
+    - '!**/*.test.*'
+
+

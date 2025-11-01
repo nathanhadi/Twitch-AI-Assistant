@@ -1,0 +1,14 @@
+{
+  "name": "twitch-irc-ddb-bot",
+  "version": "1.0.0",
+  "private": true,
+  "main": "bot.js",
+  "type": "module",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.676.0",
+    "@aws-sdk/client-secrets-manager": "^3.676.0"
+  }
+}
+
+
