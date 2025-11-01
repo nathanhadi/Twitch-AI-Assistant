@@ -101,10 +101,16 @@ export default function App() {
     resetSize()
     setLoading(true)
     try {
-      const { answer } = await ask(q, channel)
+      const response = await ask(q, channel)
+      const answer = response?.answer
+      if (!answer || typeof answer !== 'string') {
+        throw new Error('Invalid response: answer is missing or not a string')
+      }
       await typeOutAnswer(answer)
     } catch (e) {
-      setMessages((m) => [...m, { role: 'assistant', content: 'Error fetching answer.' }])
+      const errorMsg = e instanceof Error ? e.message : 'Error fetching answer.'
+      console.error('Error:', e)
+      setMessages((m) => [...m, { role: 'assistant', content: `Error: ${errorMsg}` }])
     } finally {
       setLoading(false)
     }
