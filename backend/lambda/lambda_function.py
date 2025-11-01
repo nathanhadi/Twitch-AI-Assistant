@@ -137,15 +137,32 @@ def lambda_handler(event, context):
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS_HEADERS, "body": ""}
     try:
-        body = json.loads(event.get("body") or "{}")
-        question = body.get("question", "").strip()
-        channel = body.get("channel", "").strip()
-        max_items = max(200, min(int(body.get("maxMessagesPerChunk", 2000)), 6000))
+        # Parse body - handle both string and already-parsed JSON
+        body_raw = event.get("body") or "{}"
+        if isinstance(body_raw, str):
+            try:
+                body = json.loads(body_raw)
+            except json.JSONDecodeError as e:
+                print(f"[ERROR] Failed to parse body as JSON: {body_raw}, error: {e}")
+                return {
+                    "statusCode": 400, "headers": CORS_HEADERS,
+                    "body": json.dumps({"error": f"Invalid JSON in request body: {str(e)}"})
+                }
+        else:
+            body = body_raw
+        
+        # Debug: log what we received
+        print(f"[DEBUG] Event body type: {type(body_raw)}, body: {body}")
+        
+        question = body.get("question", "").strip() if isinstance(body, dict) else ""
+        channel = body.get("channel", "").strip() if isinstance(body, dict) else ""
+        max_items = max(200, min(int(body.get("maxMessagesPerChunk", 2000)), 6000)) if isinstance(body, dict) else 2000
 
         if not question or not channel:
+            print(f"[ERROR] Missing question or channel. Question: '{question}', Channel: '{channel}', Body: {body}")
             return {
                 "statusCode": 400, "headers": CORS_HEADERS,
-                "body": json.dumps({"error": "Missing question or channel"})
+                "body": json.dumps({"error": f"Missing question or channel. Received body: {body}"})
             }
         started_at = get_stream_started_at(channel)
         if started_at:
@@ -158,11 +175,12 @@ def lambda_handler(event, context):
                 if i["channel"]["S"] == channel
             ]
             messages.sort(key=lambda x: x["t"])
+        # Build prompt - AI can answer general questions but use chat context when question is chat-related
         prompt = [
             {"role": "system", "content":
-             "You are an assistant that analyzes a Twitch channel's chat. Use only the provided JSON context. If the context is insufficient for the user's question, clearly state what additional timeframe or data you need. Prefer concise, correct answers."},
+             "You are a helpful AI assistant for a Twitch streamer. You can answer general questions on any topic. You also have access to the streamer's chat logs from their current streaming session. Only use the chat context when the question is specifically about chat, messages, viewers, or stream activity. For general questions (coding, advice, explanations, etc.), answer directly without referencing chat. Always provide concise, helpful answers."},
             {"role": "user", "content":
-             f"Context JSON:\n{json.dumps({'channel': channel, 'startedAt': started_at, 'messages': messages})}"},
+             f"Chat context from current streaming session (only use if the question is about chat):\n{json.dumps({'channel': channel, 'startedAt': started_at, 'messages': messages, 'messageCount': len(messages)}, indent=2)}"},
             {"role": "user", "content": f"Question: {question}"},
         ]
         # Use Gemini only if enabled AND API key is present, otherwise fall back to OpenAI

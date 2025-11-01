@@ -61,7 +61,7 @@ export default function App() {
     return () => el.removeEventListener('scroll', onScroll)
   }, [])
 
-  const typeOutAnswer = async (text: string, speedMs = 28) => {
+  const typeOutAnswer = async (text: string, speedMs = 10) => {
     // append placeholder assistant message
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
     await new Promise<void>((resolve) => {
@@ -185,7 +185,7 @@ export default function App() {
         </div>
       </section>
 
-      <footer className="footer">Powered by DynamoDB + OpenAI · Session-based analysis · Created by nathanhadi</footer>
+      <footer className="footer">Session-based analysis · Created by nathanhadi</footer>
     </div>
   )
 }
